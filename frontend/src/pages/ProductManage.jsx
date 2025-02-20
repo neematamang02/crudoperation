@@ -11,7 +11,6 @@ const baseurl = "http://localhost:3000/api/products";
 
 const ProductManage = () => {
   const [products, setProducts] = useState([]);
-  // Use the product id of the open dropdown
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [currentProduct, setCurrentProduct] = useState(null);
@@ -64,20 +63,44 @@ const ProductManage = () => {
     handleMenuClose();
   };
 
-  const handleDuplicateProduct = () => {
+  const handleDuplicateProduct = async () => {
     if (selectedProduct) {
-      setProducts([...products, { ...selectedProduct, id: Date.now() }]);
+      try {
+        // Create a new product object without the id fields so that the backend generates a new unique id.
+        const newProduct = {
+          ...selectedProduct,
+          id: undefined,
+          _id: undefined,
+        };
+
+        // POST the new product to the database.
+        const response = await fetch(baseurl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newProduct),
+        });
+        if (!response.ok) throw new Error("Failed to duplicate product");
+        const createdProduct = await response.json();
+
+        // Update state with the new product.
+        setProducts((prev) => [...prev, createdProduct]);
+        toast.success("Product duplicated successfully!");
+      } catch (error) {
+        console.error("Error duplicating product:", error);
+        toast.error("Failed to duplicate product");
+      } finally {
+        handleMenuClose();
+      }
     }
-    handleMenuClose();
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCurrentProduct((prev) => ({ ...prev, [name]: value }));
   };
+
   const handleUpdate = async () => {
     try {
-      // Use either _id or id
       const id = currentProduct._id || currentProduct.id;
       const response = await fetch(`${baseurl}/${id}`, {
         method: "PUT",
@@ -139,7 +162,6 @@ const ProductManage = () => {
               <h3 className="mt-2 text-lg font-semibold">{product.name}</h3>
               <p>Quantity: {product.quantity}</p>
               <p>Price: ${product.price}</p>
-
               {/* Button and dropdown container */}
               <div className="relative inline-block">
                 <button
